@@ -13,9 +13,7 @@ app.get("/",(req,res)=>{
 }); 
 
 socketIo.on("connection",(socket)=>{
-    console.log("user connected"); 
     socket.on("message",(msg)=>{
-        console.log(msg); 
         socketIo.emit("message",msg); 
     });
 });

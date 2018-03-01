@@ -1,43 +1,46 @@
 "use strict";
 let socket = io(),
-    username = "jake",
+    username = document.getElementById("username-input"),
     messageBox = document.getElementById("message-box");
     
 document.getElementById("submit-button").addEventListener("click", (evt)=>{
-    socket.emit("message",{username: username, msg: messageBox.value})
-    messageBox.value = ""; 
+    if(messageBox.value){
+        socket.emit("message",{username: username.value || "anonymous", msg: messageBox.value})
+        messageBox.value = ""; 
+    }
 });
 
 //listen for enter key when in text box
 messageBox.addEventListener("keypress", (e)=>{
     let key = e.which || e.keyCode;
     if (key === 13) { // 13 is enter
-        socket.emit("message",{username: username, msg: messageBox.value})
-        messageBox.value = ""; 
+        if(messageBox.value){
+            socket.emit("message",{username: username.value || "anonymous", msg: messageBox.value})
+            messageBox.value = ""; 
+        }
     }
 }); 
 
 socket.on("message",(msg)=>{
     let messageWrapper = document.getElementById("message-wrapper"),
         divNode = document.createElement("div"),
-        senderSpanNode = document.createElement("span"),  
+        sender = "",  
         pNode = document.createElement("p"),
         spanNode = document.createElement("span"),
         now = new Date(); 
 
         divNode.classList.add("container"); 
-        if(msg.username === username){
+        if(msg.username === username.value){
             divNode.classList.add("darker")
-            senderSpanNode.innerText = "Me"; 
+            sender = "Me"; 
         }else{
-            senderSpanNode.innerText = msg.username; 
+            sender = msg.username; 
         }
-        pNode.innerText = msg.msg; 
+        pNode.innerText ="("+sender+"): "+msg.msg; 
 
         spanNode.innerText = now.getHours()+":"+now.getMinutes(); 
         spanNode.classList.add("time-right"); 
 
-        divNode.appendChild(senderSpanNode);
         divNode.appendChild(pNode); 
         divNode.appendChild(spanNode); 
 
