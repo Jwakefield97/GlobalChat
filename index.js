@@ -11,11 +11,15 @@ app.set("views", "./views");  //tells view engine where to look for templates
 app.get("/",(req,res)=>{
     res.render("index.pug"); 
 }); 
+app.get("/game",(req,res)=>{
+    res.render("game.pug"); 
+}); 
 
 socketIo.on("connection",(socket)=>{
     socket.on("message",(msg)=>{
         socketIo.emit("message",msg); 
     });
+    
 });
 
 
