@@ -1,7 +1,6 @@
 "use strict"; 
 let x,
     y,
-    bullets = [],
     height,
     width,
     socket,
@@ -25,9 +24,9 @@ let x,
             brx: 0,  
             bry: 0 
         },
+        bullets: [], 
         dir: playerDir.UP
-    },
-    currentDir = playerDir.UP;
+    }; 
 function setup() {
     console.log(this);
     socket = io(); 
@@ -41,20 +40,23 @@ function draw() {
     if(keyIsDown(playerDir.UP)){ //w   i.e. up 
         y-=4;
         player.dir = playerDir.UP
-    }else if(keyIsDown(playerDir.LEFT)){//a  i.e. left
+    } 
+    if(keyIsDown(playerDir.LEFT)){//a  i.e. left
         x-=4;
         player.dir = playerDir.LEFT
-    }else if(keyIsDown(playerDir.DOWN)){//s   i.e. down
+    } 
+    if(keyIsDown(playerDir.DOWN)){//s   i.e. down
         y+=4;
         player.dir = playerDir.DOWN
-    } else if(keyIsDown(playerDir.RIGHT)){//d  i.e. right 
+    }  
+    if(keyIsDown(playerDir.RIGHT)){//d  i.e. right 
         x+=4;
         player.dir = playerDir.RIGHT
     }
 
-    clear();
-    background(0,0,0);
-    updateBullet();
+    clear(); //clear canvas
+    background(0,0,0); //set background to blue 
+    updateBullet(); //update all bullet coords 
     //update player coords 
     player.quad.tlx = x; 
     player.quad.tly = y;
@@ -88,7 +90,17 @@ function draw() {
     quad(player.quad.tlx,player.quad.tly,player.quad.trx,player.quad.try,player.quad.brx,player.quad.bry,player.quad.blx,player.quad.bly);
 }
 function shoot(){
-    bullets.push({x: x, y: y});
+    switch(player.dir){
+        case playerDir.UP: 
+            break; 
+        case playerDir.DOWN: 
+            break; 
+        case playerDir.LEFT: 
+            break; 
+        case playerDir.RIGHT: 
+            break; 
+    }
+    player.bullets.push({x: x, y: y,dir: player.dir});
 }
 
 function keyPressed(){
@@ -98,11 +110,25 @@ function keyPressed(){
 }
 
 function updateBullet(){
-    bullets.forEach(item =>{
+    player.bullets.forEach(item =>{
         if(item.y >= height || item.y <= 0){
-            bullets = bullets.filter(e => e !== item);
+            player.bullets = player.bullets.filter(e => e !== item);
         }else{
-        item.y -= 10;
+            //update bullet coords based on its direction 
+            switch(item.dir){
+                case playerDir.UP: 
+                    item.y -= 10; 
+                    break; 
+                case playerDir.DOWN: 
+                    item.y += 10; 
+                    break; 
+                case playerDir.LEFT: 
+                    item.x -= 10; 
+                    break; 
+                case playerDir.RIGHT: 
+                    item.x += 10; 
+                    break; 
+            }
         }
         ellipse(item.x,item.y,10,10);
     });
