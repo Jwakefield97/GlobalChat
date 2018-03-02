@@ -90,17 +90,26 @@ function draw() {
     quad(player.quad.tlx,player.quad.tly,player.quad.trx,player.quad.try,player.quad.brx,player.quad.bry,player.quad.blx,player.quad.bly);
 }
 function shoot(){
+    let xCord,yCord; 
     switch(player.dir){
         case playerDir.UP: 
+            xCord = player.quad.tlx+(playerSize/2);
+            yCord = player.quad.tly; 
             break; 
         case playerDir.DOWN: 
+            xCord = player.quad.blx+(playerSize/2);
+            yCord = player.quad.bry; 
             break; 
         case playerDir.LEFT: 
+            xCord = player.quad.tlx;
+            yCord = player.quad.bly-(playerSize/2); 
             break; 
         case playerDir.RIGHT: 
+             xCord = player.quad.trx;
+             yCord = player.quad.bry-(playerSize/2); 
             break; 
     }
-    player.bullets.push({x: x, y: y,dir: player.dir});
+    player.bullets.push({x: xCord, y: yCord,dir: player.dir});
 }
 
 function keyPressed(){
