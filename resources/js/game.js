@@ -13,7 +13,7 @@ let x,
     playerSize = 50,
     bulletSize = 10, 
     player = {
-        id: (new Date()).getTime(), //give unique id (fix this)
+        id: (new Date()).getTime().toString(), //give unique id (fix this)
         score: 0,
         quad: {
             tlx: 0, //top left x 
@@ -28,8 +28,10 @@ let x,
         bullets: [], 
         dir: playerDir.UP
     },
-    enemies = {},
-    dead = false; //store id as keys 
+    enemies = {},//store id as keys
+    dead = false,
+    playersKilled = [],
+    hasMoved = false; 
 function setup() {
     socket = io(); 
     height = windowHeight-15;
@@ -39,18 +41,23 @@ function setup() {
     createCanvas(width, height);
     socket.on("move",(msg)=>{
         if(msg.id !== player.id){
-            enemies[msg.id.toString()] = msg; 
+            enemies[+msg.id] = msg; 
         }
     }); 
     socket.on("shoot",(msg)=>{
         if(msg.id !== player.id){
-            enemies[msg.id.toString()] = msg; 
+            enemies[+msg.id] = msg; 
+        }
+    }); 
+    socket.on("killed",(msg)=>{
+        if(msg.id !== player.id){
+            enemies[+msg.id] = "deleted"; 
+            console.log(enemies);
         }
     }); 
 }
 function draw() {
-    if(!dead){
-        let hasMoved = false; 
+    if(!dead){ 
         if(keyIsDown(playerDir.UP)){ //w   i.e. up 
             y-=4;
             player.dir = playerDir.UP
@@ -77,55 +84,58 @@ function draw() {
     
         //TODO: put this in its own function
         for(let enem in enemies){
-            let e = enemies[enem]; 
-            strokeWeight(8);
-            stroke(255,0,0); 
-            //set the players direction indicator  
-            switch(e.dir){
-                case playerDir.UP: 
-                    line(e.quad.tlx,e.quad.tly,e.quad.trx,e.quad.try)
-                    break; 
-                case playerDir.DOWN: 
-                    line(e.quad.blx,e.quad.bly,e.quad.brx,e.quad.bry)
-                    break; 
-                case playerDir.LEFT: 
-                    line(e.quad.tlx,e.quad.tly,e.quad.blx,e.quad.bly)
-                    break; 
-                case playerDir.RIGHT: 
-                    line(e.quad.trx,e.quad.try,e.quad.brx,e.quad.bry) 
-                    break; 
-            }
-            strokeWeight(0);
-            stroke(0); 
-            e.bullets.forEach(bullet=>{
-                if(bullet.y >= height || bullet.y <= 0){
-                    e.bullets = e.bullets.filter(b => b !== bullet);
-                }else{
-                    //update bullet coords based on its direction 
-                    switch(bullet.dir){
-                        case playerDir.UP: 
-                            bullet.y -= 10; 
-                            break; 
-                        case playerDir.DOWN: 
-                            bullet.y += 10; 
-                            break; 
-                        case playerDir.LEFT: 
-                            bullet.x -= 10; 
-                            break; 
-                        case playerDir.RIGHT: 
-                            bullet.x += 10; 
-                            break; 
+            let e = enemies[+enem]; 
+            if(e !== "deleted"){
+                strokeWeight(8);
+                stroke(255,0,0); 
+                //set the players direction indicator  
+                switch(e.dir){
+                    case playerDir.UP: 
+                        line(e.quad.tlx,e.quad.tly,e.quad.trx,e.quad.try)
+                        break; 
+                    case playerDir.DOWN: 
+                        line(e.quad.blx,e.quad.bly,e.quad.brx,e.quad.bry)
+                        break; 
+                    case playerDir.LEFT: 
+                        line(e.quad.tlx,e.quad.tly,e.quad.blx,e.quad.bly)
+                        break; 
+                    case playerDir.RIGHT: 
+                        line(e.quad.trx,e.quad.try,e.quad.brx,e.quad.bry) 
+                        break; 
+                }
+                strokeWeight(0);
+                stroke(0); 
+                e.bullets.forEach(bullet=>{
+                    if(bullet.y >= height || bullet.y <= 0){
+                        e.bullets = e.bullets.filter(b => b !== bullet);
+                    }else{
+                        //update bullet coords based on its direction 
+                        switch(bullet.dir){
+                            case playerDir.UP: 
+                                bullet.y -= 10; 
+                                break; 
+                            case playerDir.DOWN: 
+                                bullet.y += 10; 
+                                break; 
+                            case playerDir.LEFT: 
+                                bullet.x -= 10; 
+                                break; 
+                            case playerDir.RIGHT: 
+                                bullet.x += 10; 
+                                break; 
+                        }
                     }
-                }
-                dead = collideRectCircle(player.quad.tlx,player.quad.tly,playerSize,playerSize,bullet.x,bullet.y,bulletSize,bulletSize); 
-                if(dead){
-                    dead = true;
-                }else{
-                    ellipse(bullet.x,bullet.y,bulletSize,bulletSize);
-                }
-            }); 
-            //player rectangle    coord order == tl,tr,br,bl 
-            quad(e.quad.tlx,e.quad.tly,e.quad.trx,e.quad.try,e.quad.brx,e.quad.bry,e.quad.blx,e.quad.bly);
+                    let collided = collideRectCircle(player.quad.tlx,player.quad.tly,playerSize,playerSize,bullet.x,bullet.y,bulletSize,bulletSize); 
+                    if(collided){
+                        dead = true;
+                        socket.emit("killed", player);
+                    }else{
+                        ellipse(bullet.x,bullet.y,bulletSize,bulletSize);
+                    }
+                }); 
+                //player rectangle    coord order == tlx/y,trx/y,brx/y,blx/y 
+                quad(e.quad.tlx,e.quad.tly,e.quad.trx,e.quad.try,e.quad.brx,e.quad.bry,e.quad.blx,e.quad.bly);
+            }
         }
     
         //update player coords 
@@ -137,6 +147,7 @@ function draw() {
         player.quad.bry = y+playerSize;
         player.quad.blx = x; 
         player.quad.bly = y+playerSize;
+
         if(hasMoved){
             socket.emit("move", player);
         }
@@ -167,30 +178,34 @@ function draw() {
         textSize(50);
         text("YOU DIED!",width/3,height/3);
         fill(255,0,0);
+        hasMoved = false; 
     }
 }
+
 function shoot(){
     let xCord,yCord; 
-    switch(player.dir){
-        case playerDir.UP: 
-            xCord = player.quad.tlx+(playerSize/2);
-            yCord = player.quad.tly; 
-            break; 
-        case playerDir.DOWN: 
-            xCord = player.quad.blx+(playerSize/2);
-            yCord = player.quad.bry; 
-            break; 
-        case playerDir.LEFT: 
-            xCord = player.quad.tlx;
-            yCord = player.quad.bly-(playerSize/2); 
-            break; 
-        case playerDir.RIGHT: 
-             xCord = player.quad.trx;
-             yCord = player.quad.bry-(playerSize/2); 
-            break; 
+    if(!dead){
+        switch(player.dir){
+            case playerDir.UP: 
+                xCord = player.quad.tlx+(playerSize/2);
+                yCord = player.quad.tly; 
+                break; 
+            case playerDir.DOWN: 
+                xCord = player.quad.blx+(playerSize/2);
+                yCord = player.quad.bry; 
+                break; 
+            case playerDir.LEFT: 
+                xCord = player.quad.tlx;
+                yCord = player.quad.bly-(playerSize/2); 
+                break; 
+            case playerDir.RIGHT: 
+                 xCord = player.quad.trx;
+                 yCord = player.quad.bry-(playerSize/2); 
+                break; 
+        }
+        player.bullets.push({x: xCord, y: yCord,dir: player.dir});
+        socket.emit("shoot", player);
     }
-    player.bullets.push({x: xCord, y: yCord,dir: player.dir});
-    socket.emit("shoot", player);
 }
 
 function keyPressed(){
@@ -200,26 +215,45 @@ function keyPressed(){
 }
 
 function updateBullet(){
-    player.bullets.forEach(item =>{
-        if(item.y >= height || item.y <= 0){
-            player.bullets = player.bullets.filter(e => e !== item);
-        }else{
-            //update bullet coords based on its direction 
-            switch(item.dir){
-                case playerDir.UP: 
-                    item.y -= 10; 
-                    break; 
-                case playerDir.DOWN: 
-                    item.y += 10; 
-                    break; 
-                case playerDir.LEFT: 
-                    item.x -= 10; 
-                    break; 
-                case playerDir.RIGHT: 
-                    item.x += 10; 
-                    break; 
+    if(!dead){
+        player.bullets.forEach(bullet =>{
+            let killedEnemy, canDrawBullet = true; 
+            if(bullet.y >= height || bullet.y <= 0){
+                player.bullets = player.bullets.filter(b => b !== bullet);
+            }else{
+                //update bullet coords based on its direction 
+                switch(bullet.dir){
+                    case playerDir.UP: 
+                        bullet.y -= 10; 
+                        break; 
+                    case playerDir.DOWN: 
+                        bullet.y += 10; 
+                        break; 
+                    case playerDir.LEFT: 
+                        bullet.x -= 10; 
+                        break; 
+                    case playerDir.RIGHT: 
+                        bullet.x += 10; 
+                        break; 
+                }
             }
-        }
-        ellipse(item.x,item.y,bulletSize,bulletSize);
-    });
+            for(let enem in enemies){ //check if user killed an enemy 
+                let en = enemies[+enem];
+                if(en !== "deleted"){
+                    killedEnemy = collideRectCircle(en.quad.tlx,en.quad.tly,playerSize,playerSize,en.x,en.y,bulletSize,bulletSize); 
+                    
+                    //NOT MEETING THIS CONDITION 
+                    if(killedEnemy){
+                        playersKilled.push(enem); 
+                        enemies[+enem] = "deleted";
+                        canDrawBullet = false;  
+                        console.log("killed player");
+                    }
+                }
+            }
+            if(canDrawBullet){
+                ellipse(bullet.x,bullet.y,bulletSize,bulletSize);
+            }
+        });
+    }
 }

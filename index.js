@@ -25,6 +25,9 @@ socketIo.on("connection",(socket)=>{
     socket.on("shoot",(msg)=>{
         socketIo.emit("shoot",msg); 
     });
+    socket.on("killed",(msg)=>{
+        socketIo.emit("killed",msg); 
+    });
     
 });
 
