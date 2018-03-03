@@ -11,7 +11,7 @@ let x,
         RIGHT: 68 
     },
     playerSize = 50,
-    gunSize = 20, 
+    bulletSize = 10, 
     player = {
         id: (new Date()).getTime(), //give unique id (fix this)
         score: 0,
@@ -28,9 +28,9 @@ let x,
         bullets: [], 
         dir: playerDir.UP
     },
-    enemies = {}; //store id as keys 
+    enemies = {},
+    dead = false; //store id as keys 
 function setup() {
-    console.log(this);
     socket = io(); 
     height = windowHeight-15;
     width = windowWidth-15; 
@@ -49,115 +49,125 @@ function setup() {
     }); 
 }
 function draw() {
-    let hasMoved = false; 
-    if(keyIsDown(playerDir.UP)){ //w   i.e. up 
-        y-=4;
-        player.dir = playerDir.UP
-        hasMoved = true; 
-    } 
-    if(keyIsDown(playerDir.LEFT)){//a  i.e. left
-        x-=4;
-        player.dir = playerDir.LEFT
-        hasMoved = true;
-    } 
-    if(keyIsDown(playerDir.DOWN)){//s   i.e. down
-        y+=4;
-        player.dir = playerDir.DOWN
-        hasMoved = true;
-    }  
-    if(keyIsDown(playerDir.RIGHT)){//d  i.e. right 
-        x+=4;
-        player.dir = playerDir.RIGHT
-        hasMoved = true;
-    }
-
-    clear(); //clear canvas
-    background(0,0,0); //set background to blue 
-    updateBullet(); //update all bullet coords 
-
-    //TODO: put this in its own function
-    for(let enem in enemies){
-        let e = enemies[enem]; 
+    if(!dead){
+        let hasMoved = false; 
+        if(keyIsDown(playerDir.UP)){ //w   i.e. up 
+            y-=4;
+            player.dir = playerDir.UP
+            hasMoved = true; 
+        } 
+        if(keyIsDown(playerDir.LEFT)){//a  i.e. left
+            x-=4;
+            player.dir = playerDir.LEFT
+            hasMoved = true;
+        } 
+        if(keyIsDown(playerDir.DOWN)){//s   i.e. down
+            y+=4;
+            player.dir = playerDir.DOWN
+            hasMoved = true;
+        }  
+        if(keyIsDown(playerDir.RIGHT)){//d  i.e. right 
+            x+=4;
+            player.dir = playerDir.RIGHT
+            hasMoved = true;
+        }
+        clear(); //clear canvas
+        background(0,0,0); //set background to blue 
+        updateBullet(); //update all bullet coords 
+    
+        //TODO: put this in its own function
+        for(let enem in enemies){
+            let e = enemies[enem]; 
+            strokeWeight(8);
+            stroke(255,0,0); 
+            //set the players direction indicator  
+            switch(e.dir){
+                case playerDir.UP: 
+                    line(e.quad.tlx,e.quad.tly,e.quad.trx,e.quad.try)
+                    break; 
+                case playerDir.DOWN: 
+                    line(e.quad.blx,e.quad.bly,e.quad.brx,e.quad.bry)
+                    break; 
+                case playerDir.LEFT: 
+                    line(e.quad.tlx,e.quad.tly,e.quad.blx,e.quad.bly)
+                    break; 
+                case playerDir.RIGHT: 
+                    line(e.quad.trx,e.quad.try,e.quad.brx,e.quad.bry) 
+                    break; 
+            }
+            strokeWeight(0);
+            stroke(0); 
+            e.bullets.forEach(bullet=>{
+                if(bullet.y >= height || bullet.y <= 0){
+                    e.bullets = e.bullets.filter(b => b !== bullet);
+                }else{
+                    //update bullet coords based on its direction 
+                    switch(bullet.dir){
+                        case playerDir.UP: 
+                            bullet.y -= 10; 
+                            break; 
+                        case playerDir.DOWN: 
+                            bullet.y += 10; 
+                            break; 
+                        case playerDir.LEFT: 
+                            bullet.x -= 10; 
+                            break; 
+                        case playerDir.RIGHT: 
+                            bullet.x += 10; 
+                            break; 
+                    }
+                }
+                dead = collideRectCircle(player.quad.tlx,player.quad.tly,playerSize,playerSize,bullet.x,bullet.y,bulletSize,bulletSize); 
+                if(dead){
+                    dead = true;
+                }else{
+                    ellipse(bullet.x,bullet.y,bulletSize,bulletSize);
+                }
+            }); 
+            //player rectangle    coord order == tl,tr,br,bl 
+            quad(e.quad.tlx,e.quad.tly,e.quad.trx,e.quad.try,e.quad.brx,e.quad.bry,e.quad.blx,e.quad.bly);
+        }
+    
+        //update player coords 
+        player.quad.tlx = x; 
+        player.quad.tly = y;
+        player.quad.trx = x+playerSize; 
+        player.quad.try = y;
+        player.quad.brx = x+playerSize; 
+        player.quad.bry = y+playerSize;
+        player.quad.blx = x; 
+        player.quad.bly = y+playerSize;
+        if(hasMoved){
+            socket.emit("move", player);
+        }
+    
         strokeWeight(8);
-        stroke(255,0,0); 
+        stroke(0,0,255); 
         //set the players direction indicator  
-        switch(e.dir){
+        switch(player.dir){
             case playerDir.UP: 
-                line(e.quad.tlx,e.quad.tly,e.quad.trx,e.quad.try)
+                line(player.quad.tlx,player.quad.tly,player.quad.trx,player.quad.try)
                 break; 
             case playerDir.DOWN: 
-                line(e.quad.blx,e.quad.bly,e.quad.brx,e.quad.bry)
+                line(player.quad.blx,player.quad.bly,player.quad.brx,player.quad.bry)
                 break; 
             case playerDir.LEFT: 
-                line(e.quad.tlx,e.quad.tly,e.quad.blx,e.quad.bly)
+                line(player.quad.tlx,player.quad.tly,player.quad.blx,player.quad.bly)
                 break; 
             case playerDir.RIGHT: 
-                line(e.quad.trx,e.quad.try,e.quad.brx,e.quad.bry) 
+                line(player.quad.trx,player.quad.try,player.quad.brx,player.quad.bry) 
                 break; 
         }
         strokeWeight(0);
         stroke(0); 
-        e.bullets.forEach(bullet=>{
-            if(bullet.y >= height || bullet.y <= 0){
-                e.bullets = e.bullets.filter(b => b !== bullet);
-            }else{
-                //update bullet coords based on its direction 
-                switch(bullet.dir){
-                    case playerDir.UP: 
-                        bullet.y -= 10; 
-                        break; 
-                    case playerDir.DOWN: 
-                        bullet.y += 10; 
-                        break; 
-                    case playerDir.LEFT: 
-                        bullet.x -= 10; 
-                        break; 
-                    case playerDir.RIGHT: 
-                        bullet.x += 10; 
-                        break; 
-                }
-            }
-            ellipse(bullet.x,bullet.y,10,10);
-        }); 
         //player rectangle    coord order == tl,tr,br,bl 
-        quad(e.quad.tlx,e.quad.tly,e.quad.trx,e.quad.try,e.quad.brx,e.quad.bry,e.quad.blx,e.quad.bly);
+        quad(player.quad.tlx,player.quad.tly,player.quad.trx,player.quad.try,player.quad.brx,player.quad.bry,player.quad.blx,player.quad.bly);
+        hasMoved = false; 
+    }else{  //player has died 
+        textSize(50);
+        text("YOU DIED!",width/3,height/3);
+        fill(255,0,0);
     }
-
-    //update player coords 
-    player.quad.tlx = x; 
-    player.quad.tly = y;
-    player.quad.trx = x+playerSize; 
-    player.quad.try = y;
-    player.quad.brx = x+playerSize; 
-    player.quad.bry = y+playerSize;
-    player.quad.blx = x; 
-    player.quad.bly = y+playerSize;
-    if(hasMoved){
-        socket.emit("move", player);
-    }
-
-    strokeWeight(8);
-    stroke(0,0,255); 
-    //set the players direction indicator  
-    switch(player.dir){
-        case playerDir.UP: 
-            line(player.quad.tlx,player.quad.tly,player.quad.trx,player.quad.try)
-            break; 
-        case playerDir.DOWN: 
-            line(player.quad.blx,player.quad.bly,player.quad.brx,player.quad.bry)
-            break; 
-        case playerDir.LEFT: 
-            line(player.quad.tlx,player.quad.tly,player.quad.blx,player.quad.bly)
-            break; 
-        case playerDir.RIGHT: 
-            line(player.quad.trx,player.quad.try,player.quad.brx,player.quad.bry) 
-            break; 
-    }
-    strokeWeight(0);
-    stroke(0); 
-    //player rectangle    coord order == tl,tr,br,bl 
-    quad(player.quad.tlx,player.quad.tly,player.quad.trx,player.quad.try,player.quad.brx,player.quad.bry,player.quad.blx,player.quad.bly);
-    hasMoved = false; 
 }
 function shoot(){
     let xCord,yCord; 
@@ -210,6 +220,6 @@ function updateBullet(){
                     break; 
             }
         }
-        ellipse(item.x,item.y,10,10);
+        ellipse(item.x,item.y,bulletSize,bulletSize);
     });
 }
