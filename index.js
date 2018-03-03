@@ -8,16 +8,22 @@ app.use(express.static("resources"));
 app.set("view engine","pug");//sets view engine  
 app.set("views", "./views");  //tells view engine where to look for templates 
 
-app.get("/",(req,res)=>{
+app.get("/chat",(req,res)=>{
     res.render("index.pug"); 
 }); 
-app.get("/game",(req,res)=>{
+app.get("/",(req,res)=>{
     res.render("game.pug"); 
 }); 
 
 socketIo.on("connection",(socket)=>{
     socket.on("message",(msg)=>{
         socketIo.emit("message",msg); 
+    });
+    socket.on("move",(msg)=>{
+        socketIo.emit("move",msg); 
+    });
+    socket.on("shoot",(msg)=>{
+        socketIo.emit("shoot",msg); 
     });
     
 });
