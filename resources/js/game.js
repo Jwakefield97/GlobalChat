@@ -52,7 +52,6 @@ function setup() {
     socket.on("killed",(msg)=>{
         if(msg.id !== player.id){
             enemies[+msg.id] = "deleted"; 
-            console.log(enemies);
         }
     }); 
 }
@@ -241,13 +240,10 @@ function updateBullet(){
                 let en = enemies[+enem];
                 if(en !== "deleted"){
                     killedEnemy = collideRectCircle(en.quad.tlx,en.quad.tly,playerSize,playerSize,en.x,en.y,bulletSize,bulletSize); 
-                    
-                    //NOT MEETING THIS CONDITION 
                     if(killedEnemy){
                         playersKilled.push(enem); 
                         enemies[+enem] = "deleted";
                         canDrawBullet = false;  
-                        console.log("killed player");
                     }
                 }
             }
